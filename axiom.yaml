@@ -1,0 +1,112 @@
+name: christiangeorgelucas/chem-tools
+version: 0.1.0
+language: python
+description: >-
+  Composable Axiom cheminformatics nodes over a single Molecule (SMILES)
+  envelope — parse & validate, compute standard molecular descriptors
+  (MW, LogP, TPSA, H-bond donor/acceptor, rotatable bonds, ring counts),
+  canonicalize, standardize (strip salts / neutralize charges), SMARTS/SMILES
+  substructure search, Morgan/MACCS/AtomPair/TopologicalTorsion fingerprints
+  with Tanimoto similarity, Lipinski Rule-of-Five screening, InChI/InChIKey
+  interconversion, and Murcko scaffold extraction. Wraps RDKit (BSD-3-Clause);
+  pure input-to-output, deterministic, with bounded input and structured
+  errors — no state, filesystem, network, or secrets.
+license: MIT
+author: Christian George Lucas
+tags:
+  - cheminformatics
+  - chemistry
+  - rdkit
+  - smiles
+  - molecular-descriptors
+  - drug-discovery
+  - fingerprint
+  - inchi
+nodes:
+    - name: Parse
+      description: >-
+        Parse a SMILES string (or MDL molblock) into a validated molecule:
+        canonical isomeric SMILES, Hill-notation formula, average molecular
+        weight, heavy-atom/bond/ring counts. Malformed input returns
+        valid=false with a structured error instead of raising.
+      input: Molecule
+      output: Molecule
+    - name: Descriptors
+      description: >-
+        Compute a standard batch of RDKit molecular descriptors for
+        drug-likeness / QSAR use: molecular weight, exact mass, Crippen
+        LogP, TPSA, H-bond donor/acceptor counts, rotatable bonds, ring and
+        aromatic-ring counts, heavy-atom count, fraction Csp3, molar
+        refractivity, formal charge, and heteroatom count.
+      input: Molecule
+      output: Descriptors
+    - name: Canonicalize
+      description: >-
+        Reduce a SMILES string to RDKit's canonical form, with options to
+        strip stereochemistry (non-isomeric canonical SMILES) or kekulize
+        (write explicit single/double bonds instead of aromatic lowercase
+        atoms). Two SMILES for the same molecule always canonicalize to the
+        same string.
+      input: CanonicalizeInput
+      output: CanonicalSmiles
+    - name: Standardize
+      description: >-
+        Normalize a molecule for downstream comparison: keep only the
+        largest organic fragment (strip counterions/solvates) and
+        neutralize formal charges where a neutral protonation state exists.
+        Reports whether standardization changed the structure.
+      input: StandardizeInput
+      output: StandardizeOutput
+    - name: SubstructureMatch
+      description: >-
+        Test whether a SMARTS (or SMILES) query pattern occurs within a
+        target molecule. Returns whether it matches, the total match count,
+        and up to 100 individual matches as target-atom-index sets in
+        query-atom order.
+      input: SubstructureMatchInput
+      output: SubstructureMatchOutput
+    - name: Fingerprint
+      description: >-
+        Compute a molecular fingerprint — Morgan/ECFP (radius + folded bit
+        length configurable), MACCS keys (fixed 167 bits), Atom-Pair, or
+        Topological-Torsion — as a hex-encoded bit vector plus its
+        popcount. Used for similarity search and clustering.
+      input: FingerprintInput
+      output: FingerprintOutput
+    - name: TanimotoSimilarity
+      description: >-
+        Compute the Tanimoto (Jaccard) similarity coefficient between two
+        molecules' fingerprints, in [0, 1]. Same fingerprint algorithm and
+        parameters are applied to both molecules before comparing.
+      input: SimilarityInput
+      output: SimilarityOutput
+    - name: Lipinski
+      description: >-
+        Screen a molecule against Lipinski's Rule of Five (drug-likeness):
+        molecular weight <= 500, LogP <= 5, H-bond donors <= 5, H-bond
+        acceptors <= 10. Reports the per-rule pass/fail, violation count,
+        and overall pass (<= 1 violation, the standard allowance).
+      input: Molecule
+      output: LipinskiOutput
+    - name: ToInChI
+      description: >-
+        Convert a molecule to its standard InChI string and InChIKey
+        (the fixed-length hashed identifier), via IUPAC's InChI algorithm
+        as bundled in RDKit.
+      input: ToInChIInput
+      output: InChIOutput
+    - name: FromInChI
+      description: >-
+        Parse an InChI string back into a molecule: canonical SMILES,
+        formula, molecular weight, and atom/bond/ring counts — the inverse
+        of ToInChI, useful for round-tripping and InChI-keyed lookups.
+      input: FromInChIInput
+      output: Molecule
+    - name: MurckoScaffold
+      description: >-
+        Extract the Murcko scaffold of a molecule (rings + connecting
+        linkers, side chains removed) and its generic framework (scaffold
+        with every atom set to carbon and every bond set to single) — used
+        for scaffold-based clustering and analysis in compound libraries.
+      input: Molecule
+      output: ScaffoldOutput

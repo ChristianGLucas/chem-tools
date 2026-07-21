@@ -1,0 +1,271 @@
+// This file defines the data contracts (messages) for your Axiom package.
+// Every node's --input and --output refers to a message defined here.
+//
+// Run `axiom create message <Name>` to scaffold a new message below.
+// Run `axiom generate` to compile these definitions into language bindings in gen/.
+//
+// DOCUMENTATION
+//   Comments written directly above a message or field declaration are extracted
+//   automatically at publish time and shown in the Axiom registry as documentation.
+//   Write your descriptions there — no separate doc files needed.
+//
+//   Leading comment  (no blank line before the declaration) → registry description ✓
+//   Detached comment (blank line before the declaration)    → ignored by registry  ✗
+//
+// This file is yours to edit. Axiom only appends new message blocks — it never
+// overwrites or removes content you have written.
+
+syntax = "proto3";
+
+package christiangeorgelucas.chem_tools;
+
+// Molecule is the canonical envelope of the package: a single small molecule
+// identified by SMILES (or an MDL molblock), plus the core identity fields
+// RDKit derives from it once parsed. Nodes that just need "give me the
+// canonical form and basic facts about this molecule" take and return this.
+message Molecule {
+  // Input: a SMILES string, e.g. "CC(=O)Oc1ccccc1C(=O)O" (aspirin). Primary
+  // input form — used when non-empty.
+  string smiles = 1;
+  // Input: an MDL Molfile (V2000) block, used only when smiles is empty.
+  string molblock = 2;
+  // Output: RDKit's canonical, isomeric SMILES for the parsed molecule.
+  string canonical_smiles = 3;
+  // Output: Hill-notation molecular formula, e.g. "C9H8O4".
+  string formula = 4;
+  // Output: average molecular weight in g/mol.
+  double molecular_weight = 5;
+  // Output: heavy-atom (non-hydrogen) count.
+  int32 num_atoms = 6;
+  // Output: bond count between heavy atoms.
+  int32 num_bonds = 7;
+  // Output: SSSR ring count.
+  int32 num_rings = 8;
+  // Output: true if the input parsed into a valid molecule.
+  bool valid = 9;
+  // Output: parse error message, set only when valid is false.
+  string error = 10;
+}
+
+// Output of Descriptors: a batch of standard RDKit molecular descriptors,
+// the kind used for drug-likeness / QSAR / cheminformatics filtering.
+message Descriptors {
+  string smiles = 1;
+  // RDKit canonical SMILES of the parsed molecule.
+  string canonical_smiles = 2;
+  // Average molecular weight, g/mol.
+  double molecular_weight = 3;
+  // Monoisotopic (exact) mass, g/mol.
+  double exact_mass = 4;
+  // Wildman-Crippen LogP (octanol/water partition coefficient estimate).
+  double logp = 5;
+  // Topological polar surface area, angstrom^2.
+  double tpsa = 6;
+  // Hydrogen-bond donor count (Lipinski definition).
+  int32 hbd = 7;
+  // Hydrogen-bond acceptor count (Lipinski definition).
+  int32 hba = 8;
+  // Rotatable bond count.
+  int32 rotatable_bonds = 9;
+  // Total (SSSR) ring count.
+  int32 ring_count = 10;
+  // Aromatic ring count.
+  int32 aromatic_ring_count = 11;
+  // Heavy-atom count.
+  int32 heavy_atom_count = 12;
+  // Fraction of carbons that are sp3-hybridized (0..1).
+  double fraction_csp3 = 13;
+  // Wildman-Crippen molar refractivity.
+  double molar_refractivity = 14;
+  // Net formal charge, sum over all atoms.
+  int32 formal_charge = 15;
+  // Count of heteroatoms (non-C, non-H heavy atoms).
+  int32 num_heteroatoms = 16;
+  bool valid = 17;
+  string error = 18;
+}
+
+// Input for Canonicalize: reduce a SMILES to RDKit's canonical form.
+message CanonicalizeInput {
+  string smiles = 1;
+  // If true, strip stereochemistry (produce a non-isomeric canonical SMILES).
+  // Default (false) preserves stereochemistry — RDKit's normal canonical form.
+  bool strip_stereo = 2;
+  // If true, kekulize the output (write explicit alternating single/double
+  // bonds instead of lowercase aromatic atoms). Default (false) keeps
+  // aromatic perception in the output.
+  bool kekulize = 3;
+}
+
+// Output of Canonicalize.
+message CanonicalSmiles {
+  string canonical_smiles = 1;
+  bool valid = 2;
+  string error = 3;
+}
+
+// Input for Standardize: normalize a molecule for downstream comparison —
+// strip counterions/solvates, neutralize charges where possible.
+message StandardizeInput {
+  string smiles = 1;
+  // If true, keep salt/solvent fragments (multi-component input is left as
+  // is). Default (false) keeps only the largest organic fragment.
+  bool keep_salts = 2;
+  // If true, leave formal charges as given. Default (false) neutralizes
+  // charges where a neutral tautomer/protonation state exists.
+  bool keep_charges = 3;
+}
+
+// Output of Standardize.
+message StandardizeOutput {
+  // Standardized canonical SMILES.
+  string smiles = 1;
+  // True if standardization changed the structure relative to the input
+  // (salt stripped and/or charges neutralized).
+  bool changed = 2;
+  bool valid = 3;
+  string error = 4;
+}
+
+// Input for SubstructureMatch: does a SMARTS (or SMILES) query pattern
+// occur within a target molecule?
+message SubstructureMatchInput {
+  // The molecule to search within.
+  string smiles = 1;
+  // The query pattern. Interpreted as SMARTS unless query_is_smiles is true.
+  string query = 2;
+  // If true, parse `query` as a SMILES substructure instead of SMARTS.
+  bool query_is_smiles = 3;
+  // If true, stereochemistry in the query must match. Default (false)
+  // ignores stereo during matching.
+  bool use_chirality = 4;
+}
+
+// One substructure match: the target-molecule atom indices it covers, in
+// query-atom order.
+message AtomMatch {
+  repeated int32 atom_indices = 1;
+}
+
+// Output of SubstructureMatch.
+message SubstructureMatchOutput {
+  // True if the query pattern occurs at least once in the target molecule.
+  bool matches = 1;
+  // Number of matches found, capped at 100 (same cap as match_details, and
+  // always equal to its length) to bound output size on highly symmetric
+  // molecules with many equivalent matches.
+  int32 match_count = 2;
+  // The matches (atom-index sets), up to the same 100-match cap.
+  repeated AtomMatch match_details = 3;
+  bool valid = 4;
+  string error = 5;
+}
+
+// Which fingerprint algorithm to compute. Distinct algorithms with distinct
+// bit semantics — not just an output encoding — so they share one node via
+// this selector rather than a config-only variant.
+enum FingerprintType {
+  MORGAN = 0;
+  MACCS = 1;
+  ATOM_PAIR = 2;
+  TOPOLOGICAL_TORSION = 3;
+}
+
+// Input for Fingerprint.
+message FingerprintInput {
+  string smiles = 1;
+  FingerprintType fp_type = 2;
+  // Morgan radius. Only used when fp_type is MORGAN; ignored otherwise.
+  // 0 means "use the default" (2).
+  int32 radius = 3;
+  // Folded fingerprint length in bits. Used by MORGAN, ATOM_PAIR, and
+  // TOPOLOGICAL_TORSION; ignored for MACCS (fixed at 167 bits). 0 means
+  // "use the default" (2048).
+  int32 n_bits = 4;
+}
+
+// Output of Fingerprint.
+message FingerprintOutput {
+  string canonical_smiles = 1;
+  FingerprintType fp_type = 2;
+  // The fingerprint bit vector, hex-encoded, most-significant bit first.
+  string fingerprint_hex = 3;
+  int32 n_bits = 4;
+  // Number of bits set to 1.
+  int32 bit_count = 5;
+  bool valid = 6;
+  string error = 7;
+}
+
+// Input for TanimotoSimilarity.
+message SimilarityInput {
+  string smiles_a = 1;
+  string smiles_b = 2;
+  FingerprintType fp_type = 3;
+  int32 radius = 4;
+  int32 n_bits = 5;
+}
+
+// Output of TanimotoSimilarity.
+message SimilarityOutput {
+  // Tanimoto (Jaccard) coefficient over the two fingerprints, in [0, 1].
+  double tanimoto = 1;
+  bool valid = 2;
+  string error = 3;
+}
+
+// Output of Lipinski: Rule-of-Five drug-likeness screen.
+message LipinskiOutput {
+  string canonical_smiles = 1;
+  double molecular_weight = 2;
+  double logp = 3;
+  int32 hbd = 4;
+  int32 hba = 5;
+  // Individual rule checks (true = within the Rule-of-Five limit).
+  bool mw_pass = 6;      // MW <= 500
+  bool logp_pass = 7;    // LogP <= 5
+  bool hbd_pass = 8;     // HBD <= 5
+  bool hba_pass = 9;     // HBA <= 10
+  // Count of the four rules violated (0-4).
+  int32 violations = 10;
+  // True if violations <= 1 (the standard Rule-of-Five allowance). Named
+  // `passes`, not `pass` — the latter is a reserved word in several of
+  // Axiom's target languages (Python, Rust) and unusable as a generated
+  // field/property name.
+  bool passes = 11;
+  bool valid = 12;
+  string error = 13;
+}
+
+// Input for ToInChI.
+message ToInChIInput {
+  string smiles = 1;
+  // Extra InChI generation options string (RDKit/InChI-TT syntax, e.g.
+  // "/FixedH"). Empty uses the standard InChI algorithm with no options.
+  string options = 2;
+}
+
+// Output of ToInChI.
+message InChIOutput {
+  string inchi = 1;
+  string inchi_key = 2;
+  bool valid = 3;
+  string error = 4;
+}
+
+// Input for FromInChI.
+message FromInChIInput {
+  string inchi = 1;
+}
+
+// Output of MurckoScaffold.
+message ScaffoldOutput {
+  string canonical_smiles = 1;
+  // Murcko scaffold: rings + linkers, original atom/bond types retained.
+  string scaffold_smiles = 2;
+  // Generic scaffold: the Murcko scaffold with every atom set to carbon and
+  // every bond set to single (topology only).
+  string generic_scaffold_smiles = 3;
+  bool valid = 4;
+  string error = 5;
+}
