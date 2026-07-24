@@ -6,9 +6,6 @@ follows: a node never raises out to the caller — on malformed input it
 returns its output message with computed fields empty, `valid=False`, and
 `error` set to a short human-readable message.
 
-Also centralizes the input-size bounds enforced BEFORE any RDKit call, so a
-caller-controlled string can't drive unbounded parsing cost — legitimate
-small-molecule SMILES/molblocks are a few hundred characters at most.
 """
 from __future__ import annotations
 
@@ -19,15 +16,6 @@ from rdkit.Chem import Descriptors, rdMolDescriptors, rdFingerprintGenerator, MA
 # own structured error messages instead of letting the native logger spam
 # stderr on every malformed input.
 rdBase.DisableLog("rdApp.*")
-
-# Bounds enforced before any RDKit call. Real small-molecule SMILES/molblocks
-# are well under these; they exist to put a hard ceiling on caller-controlled
-# parse cost, not to be generous defaults.
-MAX_SMILES_LEN = 10_000
-MAX_MOLBLOCK_LEN = 200_000
-MAX_QUERY_LEN = 2_000
-MAX_INCHI_LEN = 20_000
-MAX_OPTIONS_LEN = 256
 
 # Fingerprint bit-length bounds — 0 means "use default"; anything above the
 # cap is rejected rather than silently clamped, so a caller who asked for
@@ -49,20 +37,12 @@ class ChemToolsError(Exception):
     verbatim in its output message's `error` field."""
 
 
-def _check_len(value: str, max_len: int, label: str) -> None:
-    if value is not None and len(value) > max_len:
-        raise ChemToolsError(f"{label} exceeds max length of {max_len} characters")
-
-
 def mol_from_input(smiles: str, molblock: str = "") -> "Chem.Mol":
     """Parse a molecule from a SMILES string (preferred) or an MDL molblock
     (used when smiles is empty). Raises ChemToolsError with a descriptive
     message on any failure — never returns None, never lets an RDKit
     exception escape uncaught.
     """
-    _check_len(smiles, MAX_SMILES_LEN, "smiles")
-    _check_len(molblock, MAX_MOLBLOCK_LEN, "molblock")
-
     if smiles:
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
@@ -95,7 +75,6 @@ def basic_facts(mol: "Chem.Mol") -> dict:
 
 
 def query_mol_from(query: str, query_is_smiles: bool) -> "Chem.Mol":
-    _check_len(query, MAX_QUERY_LEN, "query")
     if not query:
         raise ChemToolsError("query is required")
     if query_is_smiles:

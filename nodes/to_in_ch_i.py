@@ -2,7 +2,7 @@ from rdkit.Chem import inchi
 
 from gen.messages_pb2 import ToInChIInput, InChIOutput
 from gen.axiom_context import AxiomContext
-from nodes._common import MAX_OPTIONS_LEN, ChemToolsError, mol_from_input
+from nodes._common import ChemToolsError, mol_from_input
 
 
 def to_in_ch_i(ax: AxiomContext, input: ToInChIInput) -> InChIOutput:
@@ -11,8 +11,6 @@ def to_in_ch_i(ax: AxiomContext, input: ToInChIInput) -> InChIOutput:
     in RDKit.
     """
     try:
-        if len(input.options) > MAX_OPTIONS_LEN:
-            raise ChemToolsError(f"options exceeds max length of {MAX_OPTIONS_LEN} characters")
         mol = mol_from_input(input.smiles)
         inchi_str = inchi.MolToInchi(mol, options=input.options)
         if not inchi_str:

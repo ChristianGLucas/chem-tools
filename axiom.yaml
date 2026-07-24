@@ -1,5 +1,5 @@
 name: christiangeorgelucas/chem-tools
-version: 0.1.0
+version: 0.2.0
 language: python
 description: >-
   Composable Axiom cheminformatics nodes over a single Molecule (SMILES)

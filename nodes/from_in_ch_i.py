@@ -2,7 +2,7 @@ from rdkit.Chem import inchi
 
 from gen.messages_pb2 import FromInChIInput, Molecule
 from gen.axiom_context import AxiomContext
-from nodes._common import MAX_INCHI_LEN, ChemToolsError, basic_facts
+from nodes._common import ChemToolsError, basic_facts
 
 
 def from_in_ch_i(ax: AxiomContext, input: FromInChIInput) -> Molecule:
@@ -13,8 +13,6 @@ def from_in_ch_i(ax: AxiomContext, input: FromInChIInput) -> Molecule:
     try:
         if not input.inchi:
             raise ChemToolsError("inchi is required")
-        if len(input.inchi) > MAX_INCHI_LEN:
-            raise ChemToolsError(f"inchi exceeds max length of {MAX_INCHI_LEN} characters")
         mol = inchi.MolFromInchi(input.inchi)
         if mol is None:
             raise ChemToolsError(f"could not parse InChI: {input.inchi!r}")
